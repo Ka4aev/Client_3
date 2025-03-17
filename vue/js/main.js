@@ -1,7 +1,7 @@
 Vue.component('card-component', {
     props: ['card', 'columnIndex'],
     template: `
-        <div class="card">
+        <div class="card" draggable="true" @dragstart="onDragStart">
             <div class="card-view" v-if="!card.isEditing">
                 <h3>{{ card.title }}</h3>
                 <div class="card-block">
@@ -11,7 +11,7 @@ Vue.component('card-component', {
                     <p><b>Дэдлайн:</b> {{ card.deadline ? new Date(card.deadline).toLocaleString() : 'Нет' }}</p>
                     <button @click="editCard">Редактировать</button>
                     <button @click="$emit('delete-card', card.id, columnIndex)">Удалить</button>
-                    <button v-if="columnIndex === 0" @click="$emit('move-card', card.id, columnIndex, 1)">В работу</button>
+                    <button v-if="columnIndex === 0" @click="$emit('move-card', { cardId: card.id, fromColumnIndex: columnIndex, toColumnIndex: 1 })">В работу</button>
                 </div>
             </div>
             <div class="card-form" v-else>
@@ -42,6 +42,10 @@ Vue.component('card-component', {
             this.card.lastEdited = Date.now();
             this.$emit('update-card', this.card);
             this.error = '';
+        },
+        onDragStart(event) {
+            event.dataTransfer.setData('cardId', this.card.id);
+            event.dataTransfer.setData('fromColumnIndex', this.columnIndex);
         }
     }
 });
@@ -49,25 +53,35 @@ Vue.component('card-component', {
 Vue.component('column-component', {
     props: ['column', 'column-index'],
     template: `
-        <div class="column">
-            <h2>{{ column.title }}</h2>
-            <button v-if="columnIndex === 0" @click="$emit('add-card', columnIndex)">Добавить карточку</button>
-            <div class="cards">
-                <card-component
-                    v-for="(card, index) in column.cards"
-                    :key="card.id"
-                    :card="card"
-                    :column-index="columnIndex"
-                    @delete-card="$emit('delete-card', $event, columnIndex)"
-                    @move-card="$emit('move-card', $event, columnIndex, $event2)"
-                    @update-card="updateCard"
-                ></card-component>
-            </div>
-        </div>
+       <div class="column" @dragover.prevent @dragenter.prevent @drop="onDrop">
+    <h2>{{ column.title }}</h2>
+    <button v-if="columnIndex === 0" @click="$emit('add-card', columnIndex)">Добавить карточку</button>
+    <div class="cards">
+        <card-component
+            v-for="(card, index) in column.cards"
+            :key="card.id"
+            :card="card"
+            :column-index="columnIndex"
+            @delete-card="$emit('delete-card', $event, columnIndex)"
+            @move-card="$emit('move-card', $event)"
+            @update-card="updateCard"
+        ></card-component>
+    </div>
+</div>
     `,
     methods: {
         updateCard(card) {
             this.$emit('update-card', card);
+        },
+        onDrop(event) {
+            console.log(event)
+            const cardId = event.dataTransfer.getData('cardId');
+            const fromColumnIndex = event.dataTransfer.getData('fromColumnIndex');
+            const toColumnIndex = this.columnIndex;
+
+            if (fromColumnIndex !== toColumnIndex) {
+                this.$emit('move-card', { cardId, fromColumnIndex, toColumnIndex });
+            }
         }
     }
 });
@@ -77,10 +91,10 @@ const app = new Vue({
     data() {
         return {
             columns: JSON.parse(localStorage.getItem("columns")) || [
-                {title: "Запланированные задачи", cards: []},
-                {title: "Задачи в работе", cards: []},
-                {title: "Тестирование", cards: []},
-                {title: "Выполненные задачи", cards: []}
+                { title: "Запланированные задачи", cards: [] },
+                { title: "Задачи в работе", cards: [] },
+                { title: "Тестирование", cards: [] },
+                { title: "Выполненные задачи", cards: [] }
             ]
         }
     },
@@ -98,10 +112,21 @@ const app = new Vue({
             this.columns[columnIndex].cards.push(newCard);
             this.saveToLocalStorage();
         },
-        moveCard(cardId, fromColumnIndex, toColumnIndex) {
+        moveCard({ cardId, fromColumnIndex, toColumnIndex }) {
+            fromColumnIndex = Number(fromColumnIndex);
+            toColumnIndex = Number(toColumnIndex);
+
+            cardId = Number(cardId);
             const card = this.columns[fromColumnIndex].cards.find(c => c.id === cardId);
+
+            if (!card) {
+                console.error("Card not found:", cardId);
+                return;
+            }
+
             this.columns[fromColumnIndex].cards = this.columns[fromColumnIndex].cards.filter(c => c.id !== cardId);
             this.columns[toColumnIndex].cards.push(card);
+
             this.saveToLocalStorage();
         },
         deleteCard(cardId, columnIndex) {
