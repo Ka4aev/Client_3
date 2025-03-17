@@ -9,9 +9,17 @@ Vue.component('card-component', {
                     <p><b>Создано:</b> {{ new Date(card.id).toLocaleString() }}</p>
                     <p><b>Последнее редактирование:</b> {{ card.lastEdited ? new Date(card.lastEdited).toLocaleString() : '' }}</p>
                     <p><b>Дэдлайн:</b> {{ card.deadline ? new Date(card.deadline).toLocaleString() : 'Нет' }}</p>
+                    <p v-if="card.returnReason"><b>Причина возврата:</b> {{ card.returnReason }}</p>
+                    <div v-if="card.showReturnInput">
+                        <input v-model="card.returnReason" placeholder="Укажите причину возврата">
+                        <button @click="saveReturnReason(card)">Сохранить причину</button>
+                    </div>
                     <button @click="editCard">Редактировать</button>
                     <button @click="$emit('delete-card', card.id, columnIndex)">Удалить</button>
                     <button v-if="columnIndex === 0" @click="$emit('move-card', { cardId: card.id, fromColumnIndex: columnIndex, toColumnIndex: 1 })">В работу</button>
+                    <button v-if="columnIndex === 1" @click="$emit('move-card', { cardId: card.id, fromColumnIndex: columnIndex, toColumnIndex: 2 })">В тестирование</button>
+                    <button v-if="columnIndex === 2" @click="returnToWork(card)">Вернуть в работу</button>
+                    <button v-if="columnIndex === 2" @click="$emit('move-card', { cardId: card.id, fromColumnIndex: columnIndex, toColumnIndex: 3 })">Завершить</button>
                 </div>
             </div>
             <div class="card-form" v-else>
@@ -46,6 +54,15 @@ Vue.component('card-component', {
         onDragStart(event) {
             event.dataTransfer.setData('cardId', this.card.id);
             event.dataTransfer.setData('fromColumnIndex', this.columnIndex);
+        },
+        returnToWork(card) {
+            card.showReturnInput = true;
+        },
+        saveReturnReason(card) {
+            if (card.returnReason.trim()) {
+                card.showReturnInput = false;
+                this.$emit('move-card', { cardId: card.id, fromColumnIndex: this.columnIndex, toColumnIndex: 1 });
+            }
         }
     }
 });
@@ -53,31 +70,35 @@ Vue.component('card-component', {
 Vue.component('column-component', {
     props: ['column', 'column-index'],
     template: `
-       <div class="column" @dragover.prevent @dragenter.prevent @drop="onDrop">
-    <h2>{{ column.title }}</h2>
-    <button v-if="columnIndex === 0" @click="$emit('add-card', columnIndex)">Добавить карточку</button>
-    <div class="cards">
-        <card-component
-            v-for="(card, index) in column.cards"
-            :key="card.id"
-            :card="card"
-            :column-index="columnIndex"
-            @delete-card="$emit('delete-card', $event, columnIndex)"
-            @move-card="$emit('move-card', $event)"
-            @update-card="updateCard"
-        ></card-component>
-    </div>
-</div>
+        <div class="column" @dragover.prevent @dragenter.prevent @drop="onDrop">
+            <h2>{{ column.title }}</h2>
+            <button v-if="columnIndex === 0" @click="$emit('add-card', columnIndex)">Добавить карточку</button>
+            <div class="cards">
+                <card-component
+                    v-for="(card, index) in column.cards"
+                    :key="card.id"
+                    :card="card"
+                    :column-index="columnIndex"
+                    @delete-card="$emit('delete-card', $event, columnIndex)"
+                    @move-card="$emit('move-card', $event)"
+                    @update-card="updateCard"
+                ></card-component>
+            </div>
+        </div>
     `,
     methods: {
         updateCard(card) {
             this.$emit('update-card', card);
         },
         onDrop(event) {
-            console.log(event)
             const cardId = event.dataTransfer.getData('cardId');
             const fromColumnIndex = event.dataTransfer.getData('fromColumnIndex');
             const toColumnIndex = this.columnIndex;
+
+            if (fromColumnIndex == 2 && toColumnIndex == 1) {
+                alert("Перемещение из столбца 'Тестирование' в столбец 'В работе' запрещено.");
+                return;
+            }
 
             if (fromColumnIndex !== toColumnIndex) {
                 this.$emit('move-card', { cardId, fromColumnIndex, toColumnIndex });
@@ -107,7 +128,9 @@ const app = new Vue({
                 completedAt: null,
                 isEditing: true,
                 deadline: null,
-                lastEdited: null
+                lastEdited: null,
+                returnReason: '',
+                showReturnInput: false
             };
             this.columns[columnIndex].cards.push(newCard);
             this.saveToLocalStorage();

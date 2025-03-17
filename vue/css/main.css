@@ -76,3 +76,16 @@ button:hover {
     font-size: 14px;
     margin-top: 8px;
 }
+
+.card input[type="text"] {
+    width: 100%;
+    padding: 8px;
+    margin-bottom: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.card button {
+    margin-right: 8px;
+}
