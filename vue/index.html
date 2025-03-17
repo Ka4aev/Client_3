@@ -8,13 +8,20 @@
     <link rel="stylesheet" href="css/main.css">
     <script defer src="js/vue.min.js"></script>
     <script defer src="js/main.js"></script>
-    <title>Todo</title>
+    <title>Kanban</title>
 </head>
 <body>
 <div id="app">
-    <h1>Хранение заметок</h1>
+    <h1>Канбан доска</h1>
     <div class="columns">
-
+        <column-component
+                v-for="(column, index) in columns"
+                :key="index"
+                :column="column"
+                :column-index="index"
+                @add-card="addCard"
+                @move-card="moveCard"
+        ></column-component>
     </div>
 </div>
 </body>
