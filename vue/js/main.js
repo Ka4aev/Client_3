@@ -1,7 +1,7 @@
 Vue.component('card-component', {
     props: ['card', 'columnIndex'],
     template: `
-        <div class="card" draggable="true" @dragstart="onDragStart">
+        <div class="card" draggable="true" @dragstart="onDragStart" :class="{ 'card-overdue': card.isOverdue, 'card-completed': card.isCompleted }">
             <div class="card-view" v-if="!card.isEditing">
                 <h3>{{ card.title }}</h3>
                 <div class="card-block">
@@ -14,7 +14,7 @@ Vue.component('card-component', {
                         <input v-model="card.returnReason" placeholder="Укажите причину возврата">
                         <button @click="saveReturnReason(card)">Сохранить причину</button>
                     </div>
-                    <button @click="editCard">Редактировать</button>
+                    <button v-if="columnIndex !== 3" @click="editCard">Редактировать</button>
                     <button @click="$emit('delete-card', card.id, columnIndex)">Удалить</button>
                     <button v-if="columnIndex === 0" @click="$emit('move-card', { cardId: card.id, fromColumnIndex: columnIndex, toColumnIndex: 1 })">В работу</button>
                     <button v-if="columnIndex === 1" @click="$emit('move-card', { cardId: card.id, fromColumnIndex: columnIndex, toColumnIndex: 2 })">В тестирование</button>
@@ -95,6 +95,11 @@ Vue.component('column-component', {
             const fromColumnIndex = event.dataTransfer.getData('fromColumnIndex');
             const toColumnIndex = this.columnIndex;
 
+            if (fromColumnIndex == 3) {
+                alert("Перемещение из столбца 'Выполненные задачи' запрещено.");
+                return;
+            }
+
             if (fromColumnIndex == 2 && toColumnIndex == 1) {
                 alert("Перемещение из столбца 'Тестирование' в столбец 'В работе' запрещено.");
                 return;
@@ -130,7 +135,9 @@ const app = new Vue({
                 deadline: null,
                 lastEdited: null,
                 returnReason: '',
-                showReturnInput: false
+                showReturnInput: false,
+                isOverdue: false,
+                isCompleted: false
             };
             this.columns[columnIndex].cards.push(newCard);
             this.saveToLocalStorage();
@@ -145,6 +152,17 @@ const app = new Vue({
             if (!card) {
                 console.error("Card not found:", cardId);
                 return;
+            }
+
+            if (toColumnIndex === 3) {
+                const now = new Date();
+                const deadline = card.deadline ? new Date(card.deadline) : null;
+
+                if (deadline && deadline < now) {
+                    card.isOverdue = true;
+                } else {
+                    card.isCompleted = true;
+                }
             }
 
             this.columns[fromColumnIndex].cards = this.columns[fromColumnIndex].cards.filter(c => c.id !== cardId);
