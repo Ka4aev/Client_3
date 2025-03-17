@@ -2,14 +2,17 @@ Vue.component('card-component', {
     props: ['card'],
     template: `
         <div class="card">
-            <div v-if="!card.isEditing">
+            <div class="card-view" v-if="!card.isEditing">
                 <h3>{{ card.title }}</h3>
+                <div class="card-block">
                 <p>{{ card.description }}</p>
-                <p>Создано: {{ new Date(card.id).toLocaleString() }}</p>
-                <p>Дэдлайн: {{ card.deadline ? new Date(card.deadline).toLocaleString() : 'Нет' }}</p>
+                <p><b>Создано:</b> {{ new Date(card.id).toLocaleString() }}</p>
+                <p><b>Дэдлайн:</b> {{ card.deadline ? new Date(card.deadline).toLocaleString() : 'Нет' }}</p>
                 <button @click="editCard">Редактировать</button>
+                </div>
+                
             </div>
-            <div v-else>
+            <div class="card-form" v-else>
                 <input v-model="card.title" placeholder="Заголовок">
                 <textarea v-model="card.description" placeholder="Описание"></textarea>
                 <input type="datetime-local" v-model="card.deadline">
@@ -74,6 +77,9 @@ const app = new Vue({
             this.columns[fromColumnIndex].cards = this.columns[fromColumnIndex].cards.filter(c => c.id !== cardId);
             this.columns[toColumnIndex].cards.push(card);
             this.saveToLocalStorage();
+        },
+        deleteCard(cardId,ColumnIndex){
+
         },
         saveToLocalStorage() {
             localStorage.setItem("columns", JSON.stringify(this.columns));
